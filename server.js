@@ -23,6 +23,7 @@ app.get("/health", (_req, res) => {
 app.get("/vault-ids", async (_req, res) => {
   const iterationRaw = _req.query.iteration;
   const vaultsRaw = _req.query.vaults;
+  const skipRaw = _req.query.skip;
 
   const iterationNum = Number(iterationRaw ?? 0);
   const iteration =
@@ -32,9 +33,11 @@ app.get("/vault-ids", async (_req, res) => {
 
   const vaultsNum = Number(vaultsRaw ?? 10000);
   const vaults =
-    Number.isFinite(vaultsNum) && vaultsNum > 0
-      ? Math.floor(vaultsNum)
-      : 10000;
+    Number.isFinite(vaultsNum) && vaultsNum > 0 ? Math.floor(vaultsNum) : 10000;
+
+  const skipNum = Number(skipRaw ?? 0);
+  const skip =
+    Number.isFinite(skipNum) && skipNum >= 0 ? Math.floor(skipNum) : 0;
 
   if (fs.existsSync(localFilePath)) {
     try {
@@ -48,7 +51,11 @@ app.get("/vault-ids", async (_req, res) => {
       }
 
       let result = data;
-      if (iteration >= 1) {
+      if (skip > 0) {
+        const start = skip;
+        const end = skip + vaults;
+        result = data.slice(start, end);
+      } else if (iteration >= 1) {
         const start = (iteration - 1) * vaults;
         const end = start + vaults;
         result = data.slice(start, end);
@@ -75,7 +82,7 @@ app.get("/vault-ids", async (_req, res) => {
   try {
     const upstream = await fetch(sourceUrl, {
       method: "GET",
-      headers: { "Accept": "application/json" },
+      headers: { Accept: "application/json" },
     });
 
     if (!upstream.ok) {
@@ -95,8 +102,8 @@ app.get("/vault-ids", async (_req, res) => {
     }
 
     let result = data;
-    if (iteration >= 1) {
-      const start = (iteration - 1) * vaults;
+    if (iteration >= 1 || skip > 0) {
+      const start = (iteration - 1) * vaults + skip;
       const end = start + vaults;
       result = data.slice(start, end);
     }
